@@ -41,6 +41,12 @@
 
 const char *SDS_NOINIT = "SDS_NOINIT";
 
+/**
+ * 计算sds类型的结构体,返回大小
+ *
+ * @param type
+ * @return
+ */
 static inline int sdsHdrSize(char type) {
     switch(type&SDS_TYPE_MASK) {
         case SDS_TYPE_5:
@@ -57,6 +63,12 @@ static inline int sdsHdrSize(char type) {
     return 0;
 }
 
+/**
+ * 根据字符串的长度，决定哪一种SDS类型
+ *
+ * @param string_size 字符串长度
+ * @return
+ */
 static inline char sdsReqType(size_t string_size) {
     if (string_size < 1<<5)
         return SDS_TYPE_5;
@@ -202,25 +214,51 @@ void sdsclear(sds s) {
  *
  * Note: this does not change the *length* of the sds string as returned
  * by sdslen(), but only the free buffer space we have. */
+/**
+ *
+ * @param s
+ * @param addlen 需要增加的长度, 要求扩容后可用长度（alloc-len)大于该参数
+ *
+ * @return
+ */
 sds sdsMakeRoomFor(sds s, size_t addlen) {
+    //sh是指向原来 sdshdr
+    //newsh是指向新的sdshdr
     void *sh, *newsh;
+
+    //查看s的可用空间
     size_t avail = sdsavail(s);
+
+    //len 是原来sds 的字符串长度
+    //newlen 是新的sds的字符串长度
     size_t len, newlen;
+
+    //由于sds 的地址的上一个地址属于是flags的, 所以s[-1]就是flags的值
+    //跟7做&运算，获取低3位的值，那是用来表示类型的，SDS_TYPE_*
+    //oldtype是原来的SDS_TYPE, type是新的sds类型
     char type, oldtype = s[-1] & SDS_TYPE_MASK;
     int hdrlen;
 
     /* Return ASAP if there is enough space left. */
+    //如果可用空间足够，直接返回
     if (avail >= addlen) return s;
 
+    //获取s字符串的长度
     len = sdslen(s);
     sh = (char*)s-sdsHdrSize(oldtype);
+
+
+    //原来占用的长度+需要增加的长度
     newlen = (len+addlen);
     assert(newlen > len);   /* Catch size_t overflow */
     if (newlen < SDS_MAX_PREALLOC)
+        // 如果在预分配大小内，直接再两倍
         newlen *= 2;
     else
+        // 如果比预分配的大小都大，则再加上预分配大小
         newlen += SDS_MAX_PREALLOC;
 
+    //根据新的长度，获取新的sds类型
     type = sdsReqType(newlen);
 
     /* Don't use type 5: the user is appending to the string and type 5 is
@@ -228,9 +266,12 @@ sds sdsMakeRoomFor(sds s, size_t addlen) {
      * at every appending operation. */
     if (type == SDS_TYPE_5) type = SDS_TYPE_8;
 
+    //新结构体的大小
     hdrlen = sdsHdrSize(type);
     assert(hdrlen + newlen + 1 > len);  /* Catch size_t overflow */
+
     if (oldtype==type) {
+        //
         newsh = s_realloc(sh, hdrlen+newlen+1);
         if (newsh == NULL) return NULL;
         s = (char*)newsh+hdrlen;

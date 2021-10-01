@@ -618,7 +618,13 @@ typedef struct RedisModuleDigest {
 #define OBJ_ENCODING_STREAM 10 /* Encoded as a radix tree of listpacks */
 
 #define LRU_BITS 24
+/**
+ * 最大存活时间是2^24-1 = 24位的1 ～= 约等于 194天
+ */
 #define LRU_CLOCK_MAX ((1<<LRU_BITS)-1) /* Max value of obj->lru */
+/**
+ *分辨率是 1s
+ */
 #define LRU_CLOCK_RESOLUTION 1000 /* LRU clock resolution in ms */
 
 #define OBJ_SHARED_REFCOUNT INT_MAX     /* Global object never destroyed. */

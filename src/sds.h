@@ -33,6 +33,7 @@
 #ifndef __SDS_H
 #define __SDS_H
 
+//最大预先分配的字节大小
 #define SDS_MAX_PREALLOC (1024*1024)
 extern const char *SDS_NOINIT;
 
@@ -78,12 +79,19 @@ struct __attribute__ ((__packed__)) sdshdr64 {
 #define SDS_TYPE_16 2
 #define SDS_TYPE_32 3
 #define SDS_TYPE_64 4
+//3位都为1 作为MASK
 #define SDS_TYPE_MASK 7
 #define SDS_TYPE_BITS 3
 #define SDS_HDR_VAR(T,s) struct sdshdr##T *sh = (void*)((s)-(sizeof(struct sdshdr##T)));
 #define SDS_HDR(T,s) ((struct sdshdr##T *)((s)-(sizeof(struct sdshdr##T))))
 #define SDS_TYPE_5_LEN(f) ((f)>>SDS_TYPE_BITS)
 
+/**
+ * 获取字符串的长度,通过sds反查sdshdr->len的值
+ *
+ * @param s
+ * @return
+ */
 static inline size_t sdslen(const sds s) {
     unsigned char flags = s[-1];
     switch(flags&SDS_TYPE_MASK) {
@@ -101,6 +109,11 @@ static inline size_t sdslen(const sds s) {
     return 0;
 }
 
+/**
+ * 查询字符串sds剩下的可用空间,通过sds反查 sdshdr->alloc 申请到的空间 减去 sdshdr->len 已用的空间
+ * @param s
+ * @return
+ */
 static inline size_t sdsavail(const sds s) {
     unsigned char flags = s[-1];
     switch(flags&SDS_TYPE_MASK) {
