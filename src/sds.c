@@ -42,7 +42,8 @@
 const char *SDS_NOINIT = "SDS_NOINIT";
 
 /**
- * 计算sds类型的结构体,返回大小
+ * 计算sds类型的结构体,返回结构体大小(不计算char[])
+ * 例如，sdshdr5 返回1
  *
  * @param type
  * @return
@@ -157,13 +158,24 @@ sds sdsnewlen(const void *init, size_t initlen) {
     return s;
 }
 
-/* Create an empty (zero length) sds string. Even in this case the string
- * always has an implicit null term. */
+/**
+ * 创建空sds字符串
+ * Create an empty (zero length) sds string. Even in this case the string
+ * always has an implicit null term.
+ *
+ * @return
+ */
 sds sdsempty(void) {
     return sdsnewlen("",0);
 }
 
-/* Create a new sds string starting from a null terminated C string. */
+/**
+ * 创建sds字符串
+ * Create a new sds string starting from a null terminated C string.
+ *
+ * @param init 以'\0'结尾的 C语言字符串
+ * @return
+ */
 sds sdsnew(const char *init) {
     size_t initlen = (init == NULL) ? 0 : strlen(init);
     return sdsnewlen(init, initlen);
@@ -174,9 +186,16 @@ sds sdsdup(const sds s) {
     return sdsnewlen(s, sdslen(s));
 }
 
-/* Free an sds string. No operation is performed if 's' is NULL. */
+/**
+ * 释放sds字符串
+ * Free an sds string. No operation is performed if 's' is NULL.
+ *
+ * @param s
+ */
 void sdsfree(sds s) {
     if (s == NULL) return;
+    //一顿操作，s指针指回sdshdr结构体的地址
+    //在进行释放操作
     s_free((char*)s-sdsHdrSize(s[-1]));
 }
 
@@ -215,8 +234,9 @@ void sdsclear(sds s) {
  * Note: this does not change the *length* of the sds string as returned
  * by sdslen(), but only the free buffer space we have. */
 /**
+ * 扩容sds字符串，意图想增加addlen的长度
  *
- * @param s
+ * @param s SDS字符串
  * @param addlen 需要增加的长度, 要求扩容后可用长度（alloc-len)大于该参数
  *
  * @return
@@ -275,18 +295,26 @@ sds sdsMakeRoomFor(sds s, size_t addlen) {
         //作用：尽量减少复制内容
         newsh = s_realloc(sh, hdrlen+newlen+1);
         if (newsh == NULL) return NULL;
+        //获取新的sdshdr结构体的地址
         s = (char*)newsh+hdrlen;
     } else {
         /* Since the header size changes, need to move the string forward,
          * and can't use realloc */
+        //扩容后是新的sds类型,使用s_malloc申请空间：新的结构体+新的字符串长度+'\0'的总长度
         newsh = s_malloc(hdrlen+newlen+1);
         if (newsh == NULL) return NULL;
+        //拷贝字符串到扩容后的sdshdr中去
         memcpy((char*)newsh+hdrlen, s, len+1);
+        //释放原来的sdshdr
         s_free(sh);
+        //把s指针指向新的sdshdr的buf中去
         s = (char*)newsh+hdrlen;
+        //赋值新结构体的flag，表示用新的sdsType
         s[-1] = type;
+        //更新sds所在的sdshdr->len 值
         sdssetlen(s, len);
     }
+    //更改 sdshdr的alloc属性大小
     sdssetalloc(s, newlen);
     return s;
 }

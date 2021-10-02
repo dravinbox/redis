@@ -71,7 +71,10 @@ static inline char sdsReqType(size_t string_size) {
     return SDS_TYPE_64;
 }
 
-/* Create a new sds string with the content specified by the 'init' pointer
+/**
+ * 创建sds字符串
+ *
+ * Create a new sds string with the content specified by the 'init' pointer
  * and 'initlen'.
  * If NULL is used for 'init' the string is initialized with zero bytes.
  *
@@ -84,9 +87,10 @@ static inline char sdsReqType(size_t string_size) {
  * end of the string. However the string is binary safe and can contain
  * \0 characters in the middle, as the length is stored in the sds header.
  *
- * 参数：init 是字符串
- * initlen 是字符串的长度
- * */
+  * @param init  是字符串,可以sds
+  * @param initlen  是字符串的长度
+  * @return
+  */
 sds sdsnewlen(const void *init, size_t initlen) {
     void *sh;
     sds s;
@@ -154,6 +158,7 @@ sds sdsnewlen(const void *init, size_t initlen) {
             break;
         }
     }
+    //如果字符串有值，复制到sds中
     if (initlen && init)
         memcpy(s, init, initlen);
     s[initlen] = '\0';

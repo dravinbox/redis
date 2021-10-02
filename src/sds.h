@@ -46,13 +46,26 @@ typedef char *sds;
 /* Note: sdshdr5 is never used, we just access the flags byte directly.
  * However is here to document the layout of type 5 SDS strings. */
 struct __attribute__ ((__packed__)) sdshdr5 {
+
+    // 高5位是记录sdshdr5这种类型的buf已使用的长度,既可以保存 2^5-1 = 31个字符长度
+    // 低3位是记录SDS的类型
     unsigned char flags; /* 3 lsb of type, and 5 msb of string length */
+
+    //由于flag记录了长度，这个buf可以保存更多'\0'，所以是Redis字符串支持二进制安全
     char buf[];
 };
 struct __attribute__ ((__packed__)) sdshdr8 {
+    //记录已使用的字符串长度,uint8_t是unsigned char,既可以保存 2^8-1 = 255个字符长度
     uint8_t len; /* used */
+
+    //记录已申请的字符串长度
     uint8_t alloc; /* excluding the header and null terminator */
+
+    // 高5位 不使用
+    // 低3位是记录SDS的类型
     unsigned char flags; /* 3 lsb of type, 5 unused bits */
+
+    //由于len记录了长度，这个buf可以保存更多'\0'，所以是Redis字符串支持二进制安全
     char buf[];
 };
 struct __attribute__ ((__packed__)) sdshdr16 {
@@ -140,6 +153,12 @@ static inline size_t sdsavail(const sds s) {
     return 0;
 }
 
+/**
+ * 更新sds所在的sdshdr->len 值
+ *
+ * @param s SDS字符串
+ * @param newlen  新的已使用长度
+ */
 static inline void sdssetlen(sds s, size_t newlen) {
     unsigned char flags = s[-1];
     switch(flags&SDS_TYPE_MASK) {
