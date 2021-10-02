@@ -181,7 +181,13 @@ sds sdsnew(const char *init) {
     return sdsnewlen(init, initlen);
 }
 
-/* Duplicate an sds string. */
+/**
+ * 复制sds字符串
+ * Duplicate an sds string.
+ *
+ * @param s 原sds字符串
+ * @return
+ */
 sds sdsdup(const sds s) {
     return sdsnewlen(s, sdslen(s));
 }
@@ -468,20 +474,31 @@ sds sdsgrowzero(sds s, size_t len) {
  * After the call, the passed sds string is no longer valid and all the
  * references must be substituted with the new pointer returned by the call. */
 sds sdscatlen(sds s, const void *t, size_t len) {
+    //计算当前的sds长度
     size_t curlen = sdslen(s);
 
+    //扩容sds字符串，意图增加len个长度，实际增加比len更长的
     s = sdsMakeRoomFor(s,len);
     if (s == NULL) return NULL;
+    //复制字符串在扩容好的sds的后面（s+curlen）
     memcpy(s+curlen, t, len);
     sdssetlen(s, curlen+len);
     s[curlen+len] = '\0';
     return s;
 }
 
-/* Append the specified null terminated C string to the sds string 's'.
+/**
+ * Append the specified null terminated C string to the sds string 's'.
  *
  * After the call, the passed sds string is no longer valid and all the
- * references must be substituted with the new pointer returned by the call. */
+ * references must be substituted with the new pointer returned by the call.
+ *
+ * 在sds字符串后面追加 以'\0'结尾的字符串(NTS)
+ *
+ * @param s sds字符串
+ * @param t nts
+ * @return
+ */
 sds sdscat(sds s, const char *t) {
     return sdscatlen(s, t, strlen(t));
 }
