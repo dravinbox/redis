@@ -207,6 +207,11 @@ static inline size_t sdsalloc(const sds s) {
     return 0;
 }
 
+/**
+ * 更改 sdshdr的alloc属性大小
+ * @param s
+ * @param newlen
+ */
 static inline void sdssetalloc(sds s, size_t newlen) {
     unsigned char flags = s[-1];
     switch(flags&SDS_TYPE_MASK) {

@@ -271,7 +271,8 @@ sds sdsMakeRoomFor(sds s, size_t addlen) {
     assert(hdrlen + newlen + 1 > len);  /* Catch size_t overflow */
 
     if (oldtype==type) {
-        //
+        //如果扩容后sds还是同一类型，则使用s_realloc函数尝试在给定的指针空间上重新申请分配内存，如果原地址空间实在无法满足要求才去申请新内存空间并复制内容过去。
+        //作用：尽量减少复制内容
         newsh = s_realloc(sh, hdrlen+newlen+1);
         if (newsh == NULL) return NULL;
         s = (char*)newsh+hdrlen;
