@@ -200,7 +200,7 @@ sds sdsdup(const sds s) {
  */
 void sdsfree(sds s) {
     if (s == NULL) return;
-    //一顿操作，s指针指回sdshdr结构体的地址
+    //一顿操作，sds指针指回sdshdr结构体的地址
     //在进行释放操作
     s_free((char*)s-sdsHdrSize(s[-1]));
 }
@@ -889,8 +889,11 @@ int sdscmp(const sds s1, const sds s2) {
 
     l1 = sdslen(s1);
     l2 = sdslen(s2);
+    //获取他们俩最小的长度
     minlen = (l1 < l2) ? l1 : l2;
+    //对比他们前minlen个字节
     cmp = memcmp(s1,s2,minlen);
+    //如果前minlen个字节相同的情况下，再看谁长一点
     if (cmp == 0) return l1>l2? 1: (l1<l2? -1: 0);
     return cmp;
 }

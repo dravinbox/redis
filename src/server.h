@@ -602,18 +602,22 @@ typedef struct RedisModuleDigest {
     memset(mdvar.x,0,sizeof(mdvar.x)); \
 } while(0);
 
-/* Objects encoding. Some kind of objects like Strings and Hashes can be
+/**
+ * Objects encoding. Some kind of objects like Strings and Hashes can be
  * internally represented in multiple ways. The 'encoding' field of the object
- * is set to one of this fields for this object. */
-#define OBJ_ENCODING_RAW 0     /* Raw representation */
-#define OBJ_ENCODING_INT 1     /* Encoded as integer */
+ * is set to one of this fields for this object.
+ *
+ * 字符串的编码一共有3中：RAW，INT，EMBSTR
+ * */
+#define OBJ_ENCODING_RAW 0     /* Raw representation ,长度大于OBJ_ENCODING_EMBSTR_SIZE_LIMIT的字符串，在该编码中，robj和sds结构放在两个不连续的内存中 */
+#define OBJ_ENCODING_INT 1     /* Encoded as integer  可以吧数值类型的字符串转化为整型，如字符串中"123456789012"需要占用12个字符，它会转化为long long，只需要占用8个字节*/
 #define OBJ_ENCODING_HT 2      /* Encoded as hash table */
 #define OBJ_ENCODING_ZIPMAP 3  /* Encoded as zipmap */
 #define OBJ_ENCODING_LINKEDLIST 4 /* No longer used: old list encoding. */
 #define OBJ_ENCODING_ZIPLIST 5 /* Encoded as ziplist */
 #define OBJ_ENCODING_INTSET 6  /* Encoded as intset */
 #define OBJ_ENCODING_SKIPLIST 7  /* Encoded as skiplist */
-#define OBJ_ENCODING_EMBSTR 8  /* Embedded sds string encoding */
+#define OBJ_ENCODING_EMBSTR 8  /* Embedded sds string encoding  内存申请和释放只需要调用一次内存操作函数 ， robj和sdshdr保存在一块连续内存中，减少内存碎片*/
 #define OBJ_ENCODING_QUICKLIST 9 /* Encoded as linked list of ziplists */
 #define OBJ_ENCODING_STREAM 10 /* Encoded as a radix tree of listpacks */
 
@@ -636,6 +640,7 @@ typedef struct redisObject {
     unsigned lru:LRU_BITS; /* LRU time (relative to global lru_clock) or
                             * LFU data (least significant 8 bits frequency
                             * and most significant 16 bits access time). */
+    //引用计数,为了节省内存，Redis会多处引用同一个redisObject
     int refcount;
     void *ptr;
 } robj;
