@@ -471,13 +471,13 @@ robj *tryObjectEncoding(robj *o) {
      * Note that we are sure that a string larger than 20 chars is not
      * representable as a 32 nor 64 bit integer. */
     len = sdslen(s);
-    //2
+    //字符串长度小于或等于20,则调用string2l转longlong，如果成功则返回1 。 longlong 只占用8个字节，也就是说如果数值型字符串在20位以内，都可以用8个字节来表示
     if (len <= 20 && string2l(s,len,&value)) {
         /* This object is encodable as a long. Try to use a shared object.
          * Note that we avoid using shared integers when maxmemory is used
          * because every object needs to have a private LRU field for the LRU
          * algorithm to work well. */
-        //3
+        //尝试获取共享的整数robj
         if ((server.maxmemory == 0 ||
             !(server.maxmemory_policy & MAXMEMORY_FLAG_NO_SHARED_INTEGERS)) &&
             value >= 0 &&
@@ -487,14 +487,14 @@ robj *tryObjectEncoding(robj *o) {
             incrRefCount(shared.integers[value]);
             return shared.integers[value];
         } else {
-            //4
+            //RAW类型直接变更robj的ptr
             if (o->encoding == OBJ_ENCODING_RAW) {
                 sdsfree(o->ptr);
                 o->encoding = OBJ_ENCODING_INT;
                 o->ptr = (void*) value;
                 return o;
             } else if (o->encoding == OBJ_ENCODING_EMBSTR) {
-                //5
+                //如果是EMBSTR，由于他robj和sds在同一个内存块中，无法直接替换ptr,所以则需要重新创建
                 decrRefCount(o);
                 return createStringObjectFromLongLongForValue(value);
             }
@@ -505,7 +505,7 @@ robj *tryObjectEncoding(robj *o) {
      * try the EMBSTR encoding which is more efficient.
      * In this representation the object and the SDS string are allocated
      * in the same chunk of memory to save space and cache misses. */
-    //6
+    //不能转INT编码情况下，尝试转EMBSTR
     if (len <= OBJ_ENCODING_EMBSTR_SIZE_LIMIT) {
         robj *emb;
 
@@ -524,7 +524,7 @@ robj *tryObjectEncoding(robj *o) {
      * We do that only for relatively large strings as this branch
      * is only entered if the length of the string is greater than
      * OBJ_ENCODING_EMBSTR_SIZE_LIMIT. */
-    //7
+    //到这里只能使用RAW编码了，尝试释放sds剩下的可用空间
     trimStringObjectIfNeeded(o);
 
     /* Return the original object. */
