@@ -1,4 +1,6 @@
 # Redis Makefile
+# -----> 网上的解释： https://www.cnblogs.com/ym65536/p/7077216.html
+
 # Copyright (C) 2009 Salvatore Sanfilippo <antirez at gmail dot com>
 # This file is released under the BSD license, see the COPYING file
 #
