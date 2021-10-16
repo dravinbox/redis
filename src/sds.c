@@ -42,7 +42,8 @@
 const char *SDS_NOINIT = "SDS_NOINIT";
 
 /**
- * 计算sds类型的结构体,返回大小
+ * 计算sds类型的结构体,返回结构体大小(不计算char[])
+ * 例如，sdshdr5 返回1
  *
  * @param type
  * @return
@@ -157,26 +158,50 @@ sds sdsnewlen(const void *init, size_t initlen) {
     return s;
 }
 
-/* Create an empty (zero length) sds string. Even in this case the string
- * always has an implicit null term. */
+/**
+ * 创建空sds字符串
+ * Create an empty (zero length) sds string. Even in this case the string
+ * always has an implicit null term.
+ *
+ * @return
+ */
 sds sdsempty(void) {
     return sdsnewlen("",0);
 }
 
-/* Create a new sds string starting from a null terminated C string. */
+/**
+ * 创建sds字符串
+ * Create a new sds string starting from a null terminated C string.
+ *
+ * @param init 以'\0'结尾的 C语言字符串
+ * @return
+ */
 sds sdsnew(const char *init) {
     size_t initlen = (init == NULL) ? 0 : strlen(init);
     return sdsnewlen(init, initlen);
 }
 
-/* Duplicate an sds string. */
+/**
+ * 复制sds字符串
+ * Duplicate an sds string.
+ *
+ * @param s 原sds字符串
+ * @return
+ */
 sds sdsdup(const sds s) {
     return sdsnewlen(s, sdslen(s));
 }
 
-/* Free an sds string. No operation is performed if 's' is NULL. */
+/**
+ * 释放sds字符串
+ * Free an sds string. No operation is performed if 's' is NULL.
+ *
+ * @param s
+ */
 void sdsfree(sds s) {
     if (s == NULL) return;
+    //一顿操作，sds指针指回sdshdr结构体的地址
+    //在进行释放操作
     s_free((char*)s-sdsHdrSize(s[-1]));
 }
 
@@ -215,8 +240,9 @@ void sdsclear(sds s) {
  * Note: this does not change the *length* of the sds string as returned
  * by sdslen(), but only the free buffer space we have. */
 /**
+ * 扩容sds字符串，意图想增加addlen的长度
  *
- * @param s
+ * @param s SDS字符串
  * @param addlen 需要增加的长度, 要求扩容后可用长度（alloc-len)大于该参数
  *
  * @return
@@ -275,18 +301,26 @@ sds sdsMakeRoomFor(sds s, size_t addlen) {
         //作用：尽量减少复制内容
         newsh = s_realloc(sh, hdrlen+newlen+1);
         if (newsh == NULL) return NULL;
+        //获取新的sdshdr结构体的地址
         s = (char*)newsh+hdrlen;
     } else {
         /* Since the header size changes, need to move the string forward,
          * and can't use realloc */
+        //扩容后是新的sds类型,使用s_malloc申请空间：新的结构体+新的字符串长度+'\0'的总长度
         newsh = s_malloc(hdrlen+newlen+1);
         if (newsh == NULL) return NULL;
+        //拷贝字符串到扩容后的sdshdr中去
         memcpy((char*)newsh+hdrlen, s, len+1);
+        //释放原来的sdshdr
         s_free(sh);
+        //把s指针指向新的sdshdr的buf中去
         s = (char*)newsh+hdrlen;
+        //赋值新结构体的flag，表示用新的sdsType
         s[-1] = type;
+        //更新sds所在的sdshdr->len 值
         sdssetlen(s, len);
     }
+    //更改 sdshdr的alloc属性大小
     sdssetalloc(s, newlen);
     return s;
 }
@@ -440,20 +474,31 @@ sds sdsgrowzero(sds s, size_t len) {
  * After the call, the passed sds string is no longer valid and all the
  * references must be substituted with the new pointer returned by the call. */
 sds sdscatlen(sds s, const void *t, size_t len) {
+    //计算当前的sds长度
     size_t curlen = sdslen(s);
 
+    //扩容sds字符串，意图增加len个长度，实际增加比len更长的
     s = sdsMakeRoomFor(s,len);
     if (s == NULL) return NULL;
+    //复制字符串在扩容好的sds的后面（s+curlen）
     memcpy(s+curlen, t, len);
     sdssetlen(s, curlen+len);
     s[curlen+len] = '\0';
     return s;
 }
 
-/* Append the specified null terminated C string to the sds string 's'.
+/**
+ * Append the specified null terminated C string to the sds string 's'.
  *
  * After the call, the passed sds string is no longer valid and all the
- * references must be substituted with the new pointer returned by the call. */
+ * references must be substituted with the new pointer returned by the call.
+ *
+ * 在sds字符串后面追加 以'\0'结尾的字符串(NTS)
+ *
+ * @param s sds字符串
+ * @param t nts
+ * @return
+ */
 sds sdscat(sds s, const char *t) {
     return sdscatlen(s, t, strlen(t));
 }
@@ -844,8 +889,11 @@ int sdscmp(const sds s1, const sds s2) {
 
     l1 = sdslen(s1);
     l2 = sdslen(s2);
+    //获取他们俩最小的长度
     minlen = (l1 < l2) ? l1 : l2;
+    //对比他们前minlen个字节
     cmp = memcmp(s1,s2,minlen);
+    //如果前minlen个字节相同的情况下，再看谁长一点
     if (cmp == 0) return l1>l2? 1: (l1<l2? -1: 0);
     return cmp;
 }

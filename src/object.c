@@ -109,12 +109,16 @@ robj *createEmbeddedStringObject(const char *ptr, size_t len) {
     return o;
 }
 
-/* Create a string object with EMBSTR encoding if it is smaller than
+/**
+ * 创建 字符串的robj,如果长度小于 OBJ_ENCODING_EMBSTR_SIZE_LIMIT ,那么编码是 OBJ_ENCODING_EMBSTR ;否则编码是 OBJ_ENCODING_RAW
+ *
+ * Create a string object with EMBSTR encoding if it is smaller than
  * OBJ_ENCODING_EMBSTR_SIZE_LIMIT, otherwise the RAW encoding is
  * used.
  *
  * The current limit of 44 is chosen so that the biggest string object
- * we allocate as EMBSTR will still fit into the 64 byte arena of jemalloc. */
+ * we allocate as EMBSTR will still fit into the 64 byte arena of jemalloc.
+ * */
 #define OBJ_ENCODING_EMBSTR_SIZE_LIMIT 44
 robj *createStringObject(const char *ptr, size_t len) {
     if (len <= OBJ_ENCODING_EMBSTR_SIZE_LIMIT)
@@ -435,7 +439,10 @@ void trimStringObjectIfNeeded(robj *o) {
     }
 }
 
-/* Try to encode a string object in order to save space */
+/**
+ * 尝试将字符串robj 转 INT类型
+ * Try to encode a string object in order to save space
+ * */
 robj *tryObjectEncoding(robj *o) {
     long value;
     sds s = o->ptr;
@@ -452,20 +459,25 @@ robj *tryObjectEncoding(robj *o) {
      * in represented by an actually array of chars. */
     if (!sdsEncodedObject(o)) return o;
 
-    /* It's not safe to encode shared objects: shared objects can be shared
+    /**
+     * It's not safe to encode shared objects: shared objects can be shared
      * everywhere in the "object space" of Redis and may end in places where
-     * they are not handled. We handle them only as values in the keyspace. */
+     * they are not handled. We handle them only as values in the keyspace.
+     * 该对象多处引用，不能再进行编码操作
+     * */
      if (o->refcount > 1) return o;
 
     /* Check if we can represent this string as a long integer.
      * Note that we are sure that a string larger than 20 chars is not
      * representable as a 32 nor 64 bit integer. */
     len = sdslen(s);
+    //字符串长度小于或等于20,则调用string2l转longlong，如果成功则返回1 。 longlong 只占用8个字节，也就是说如果数值型字符串在20位以内，都可以用8个字节来表示
     if (len <= 20 && string2l(s,len,&value)) {
         /* This object is encodable as a long. Try to use a shared object.
          * Note that we avoid using shared integers when maxmemory is used
          * because every object needs to have a private LRU field for the LRU
          * algorithm to work well. */
+        //尝试获取共享的整数robj
         if ((server.maxmemory == 0 ||
             !(server.maxmemory_policy & MAXMEMORY_FLAG_NO_SHARED_INTEGERS)) &&
             value >= 0 &&
@@ -475,12 +487,14 @@ robj *tryObjectEncoding(robj *o) {
             incrRefCount(shared.integers[value]);
             return shared.integers[value];
         } else {
+            //RAW类型直接变更robj的ptr
             if (o->encoding == OBJ_ENCODING_RAW) {
                 sdsfree(o->ptr);
                 o->encoding = OBJ_ENCODING_INT;
                 o->ptr = (void*) value;
                 return o;
             } else if (o->encoding == OBJ_ENCODING_EMBSTR) {
+                //如果是EMBSTR，由于他robj和sds在同一个内存块中，无法直接替换ptr,所以则需要重新创建
                 decrRefCount(o);
                 return createStringObjectFromLongLongForValue(value);
             }
@@ -491,6 +505,7 @@ robj *tryObjectEncoding(robj *o) {
      * try the EMBSTR encoding which is more efficient.
      * In this representation the object and the SDS string are allocated
      * in the same chunk of memory to save space and cache misses. */
+    //不能转INT编码情况下，尝试转EMBSTR
     if (len <= OBJ_ENCODING_EMBSTR_SIZE_LIMIT) {
         robj *emb;
 
@@ -509,6 +524,7 @@ robj *tryObjectEncoding(robj *o) {
      * We do that only for relatively large strings as this branch
      * is only entered if the length of the string is greater than
      * OBJ_ENCODING_EMBSTR_SIZE_LIMIT. */
+    //到这里只能使用RAW编码了，尝试释放sds剩下的可用空间
     trimStringObjectIfNeeded(o);
 
     /* Return the original object. */

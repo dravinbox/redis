@@ -71,7 +71,10 @@ static inline char sdsReqType(size_t string_size) {
     return SDS_TYPE_64;
 }
 
-/* Create a new sds string with the content specified by the 'init' pointer
+/**
+ *
+ *
+ * Create a new sds string with the content specified by the 'init' pointer
  * and 'initlen'.
  * If NULL is used for 'init' the string is initialized with zero bytes.
  *
@@ -84,9 +87,12 @@ static inline char sdsReqType(size_t string_size) {
  * end of the string. However the string is binary safe and can contain
  * \0 characters in the middle, as the length is stored in the sds header.
  *
- * 参数：init 是字符串
- * initlen 是字符串的长度
- * */
+ * 创建sds字符串
+ *
+  * @param init  是字符串,可以sds
+  * @param initlen  是字符串的长度
+  * @return
+  */
 sds sdsnewlen(const void *init, size_t initlen) {
     void *sh;
     sds s;
@@ -154,6 +160,7 @@ sds sdsnewlen(const void *init, size_t initlen) {
             break;
         }
     }
+    //如果字符串有值，复制到sds中
     if (initlen && init)
         memcpy(s, init, initlen);
     s[initlen] = '\0';
@@ -413,10 +420,18 @@ sds sdscatlen(sds s, const void *t, size_t len) {
     return s;
 }
 
-/* Append the specified null termianted C string to the sds string 's'.
+/**
+ * Append the specified null termianted C string to the sds string 's'.
  *
  * After the call, the passed sds string is no longer valid and all the
- * references must be substituted with the new pointer returned by the call. */
+ * references must be substituted with the new pointer returned by the call.
+ *
+ * 在sds后面追加 c语言字符串(null terminanted string)
+ *
+ * @param s SDS字符串
+ * @param t c字符串 Null Terminated String
+ * @return
+ */
 sds sdscat(sds s, const char *t) {
     return sdscatlen(s, t, strlen(t));
 }
