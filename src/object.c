@@ -350,13 +350,20 @@ void freeStreamObject(robj *o) {
     freeStream(o->ptr);
 }
 
+/**
+ * redisobj 引用自增1
+ *
+ * @param o
+ */
 void incrRefCount(robj *o) {
     if (o->refcount < OBJ_FIRST_SPECIAL_REFCOUNT) {
+        // 小于(INT_MAX-1)时候，引用自增1
         o->refcount++;
     } else {
         if (o->refcount == OBJ_SHARED_REFCOUNT) {
             /* Nothing to do: this refcount is immutable. */
         } else if (o->refcount == OBJ_STATIC_REFCOUNT) {
+            // 等于 (INT_MAX-1)时候
             serverPanic("You tried to retain an object allocated in the stack");
         }
     }
