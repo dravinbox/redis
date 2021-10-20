@@ -766,26 +766,36 @@ unsigned char *__ziplistInsert(unsigned char *zl, unsigned char *p, unsigned cha
         //直接获取prevlen
         ZIP_DECODE_PREVLEN(p, prevlensize, prevlen);
     } else {
+        //获取最后一个节点
         unsigned char *ptail = ZIPLIST_ENTRY_TAIL(zl);
         if (ptail[0] != ZIP_END) {
+            //计算最后一个节点的数据长度，赋值给prevlen
             prevlen = zipRawEntryLength(ptail);
         }
     }
 
     /* See if the entry can be encoded */
-    //2
+    //尝试把这个字符串s进行编码，把编码结果放到 value 和encoding
     if (zipTryEncoding(s,slen,&value,&encoding)) {
+        //encoding是数值编码
+
         /* 'encoding' is set to the appropriate integer encoding */
+        //获取内容的长度字节数
         reqlen = zipIntSize(encoding);
     } else {
+        //encoding是字符串编码
+
         /* 'encoding' is untouched, however zipStoreEntryEncoding will use the
          * string length to figure out how to encode it. */
+        //直接就是slen的长度
         reqlen = slen;
     }
     /* We need space for both the length of the previous entry and
      * the length of the payload. */
-    //3
+    //计算prevlen属性的长度（1字节或5字节），加到reqlen上
     reqlen += zipStorePrevEntryLength(NULL,prevlen);
+    //计算额外存放节点长度所需字节数 ，加到reqlen上。
+    //这个时候reqlen就已经是新节点的prevlen + lensize + len的完整长度了
     reqlen += zipStoreEntryEncoding(NULL,encoding,slen);
 
     /* When the insert position is not equal to the tail, we need to
@@ -793,6 +803,7 @@ unsigned char *__ziplistInsert(unsigned char *zl, unsigned char *p, unsigned cha
      * its prevlen field. */
     //4
     int forcelarge = 0;
+    //由于插入后，后驱节点的prevlen 需要调整的，可能由1字节变化为5自己，所以调整了多少个字节就放在nextdiff
     nextdiff = (p[0] != ZIP_END) ? zipPrevLenByteDiff(p,reqlen) : 0;
     if (nextdiff == -4 && reqlen < 4) {
         nextdiff = 0;
