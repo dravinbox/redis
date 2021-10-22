@@ -47,6 +47,9 @@
 /* Unused arguments generate annoying warnings... */
 #define DICT_NOTUSED(V) ((void) V)
 
+/**
+ * 哈希节点，保存key value
+ */
 typedef struct dictEntry {
     void *key;
     union {
