@@ -178,7 +178,7 @@ int dictExpand(dict *d, unsigned long size)
 
 /**
  *
- * 字典扩容重新hash
+ * 字典扩容重新hash  https://blog.csdn.net/Seky_fei/article/details/108270778
  *
 以下是哈希表渐进式rehash的详细步骤：
 
