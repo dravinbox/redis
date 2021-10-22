@@ -51,36 +51,43 @@ typedef struct dictEntry {
     void *key;
     union {
         void *val;
-        uint64_t u64;
-        int64_t s64;
+        uint64_t u64;   //uint64_t整数
+        int64_t s64;    //int64_t整数
         double d;
     } v;
-    struct dictEntry *next;
+    struct dictEntry *next;  //指向下个哈希表节点
 } dictEntry;
 
+/**
+ * dict的type属性是一个指向dictType结构的指针，
+ * 而每个dictType结构保存了一些用于操作特定类型键值对的函数，dictType的定义如下:
+ */
 typedef struct dictType {
-    uint64_t (*hashFunction)(const void *key);
-    void *(*keyDup)(void *privdata, const void *key);
-    void *(*valDup)(void *privdata, const void *obj);
-    int (*keyCompare)(void *privdata, const void *key1, const void *key2);
-    void (*keyDestructor)(void *privdata, void *key);
-    void (*valDestructor)(void *privdata, void *obj);
+    uint64_t (*hashFunction)(const void *key);         //计算哈希值
+    void *(*keyDup)(void *privdata, const void *key);  //复制键
+    void *(*valDup)(void *privdata, const void *obj);  //复制键
+    int (*keyCompare)(void *privdata, const void *key1, const void *key2); //对比键
+    void (*keyDestructor)(void *privdata, void *key);  //销毁键
+    void (*valDestructor)(void *privdata, void *obj);  //销毁键
 } dictType;
 
 /* This is our hash table structure. Every dictionary has two of this as we
  * implement incremental rehashing, for the old to the new table. */
 typedef struct dictht {
-    dictEntry **table;
-    unsigned long size;
-    unsigned long sizemask;
-    unsigned long used;
+    dictEntry **table;          //哈希表数组
+    unsigned long size;         //哈希表大小，即哈希表数组大小
+    unsigned long sizemask;     //哈希表大小掩码，总是等于size-1，主要用于计算索引
+    unsigned long used;         //已使用节点数，即已使用键值对数
 } dictht;
 
 typedef struct dict {
-    dictType *type;
-    void *privdata;
-    dictht ht[2];
+    dictType *type;    //类型特定函数
+    void *privdata;    //私有数据
+    dictht ht[2];      //2个哈希表，哈希表负载过高进行rehash的时候才会用到第2个哈希表
+    // rehash 索引
+    // 当 rehash 不在进行时，值为 -1
     long rehashidx; /* rehashing not in progress if rehashidx == -1 */
+    // 目前正在运行的安全迭代器的数量
     unsigned long iterators; /* number of iterators currently running */
 } dict;
 

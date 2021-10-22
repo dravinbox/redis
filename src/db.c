@@ -799,7 +799,12 @@ int parseScanCursorOrReply(client *c, robj *o, unsigned long *cursor) {
     return C_OK;
 }
 
-/* This command implements SCAN, HSCAN and SSCAN commands.
+/**
+ *
+ * scan命令详解： https://blog.csdn.net/qq_33361976/article/details/109285073
+ *
+ *
+ * This command implements SCAN, HSCAN and SSCAN commands.
  * If object 'o' is passed, then it must be a Hash, Set or Zset object, otherwise
  * if 'o' is NULL the command will operate on the dictionary associated with
  * the current database.
@@ -809,9 +814,12 @@ int parseScanCursorOrReply(client *c, robj *o, unsigned long *cursor) {
  * in order to parse options.
  *
  * In the case of a Hash object the function returns both the field and value
- * of every element on the Hash. */
+ * of every element on the Hash.
+ *
+ * */
 void scanGenericCommand(client *c, robj *o, unsigned long cursor) {
     int i, j;
+    //list 是一个双指针链表
     list *keys = listCreate();
     listNode *node, *nextnode;
     long count = 10;
@@ -822,15 +830,24 @@ void scanGenericCommand(client *c, robj *o, unsigned long cursor) {
 
     /* Object must be NULL (to iterate keys names), or the type of the object
      * must be Set, Sorted Set, or Hash. */
+    // 这里做一个判断 robj 必须下面几种类型中的一种
     serverAssert(o == NULL || o->type == OBJ_SET || o->type == OBJ_HASH ||
                 o->type == OBJ_ZSET);
 
     /* Set i to the first option argument. The previous one is the cursor. */
+    //scan 的所需参数是两个
+    //其它像hscan 也会走到这里
+    //hscan，sscan, zscan
+    //都是3参数
     i = (o == NULL) ? 2 : 3; /* Skip the key argument if needed. */
 
     /* Step 1: Parse options. */
+    //如果i<argc的时候则不进入，比如 scan 1000，
+    //就不会进入下面流程
     while (i < c->argc) {
         j = c->argc - i;
+        //这里就是验证count后面的参数类型
+        //必须是一个整型
         if (!strcasecmp(c->argv[i]->ptr, "count") && j >= 2) {
             if (getLongFromObjectOrReply(c, c->argv[i+1], &count, NULL)
                 != C_OK)
@@ -844,7 +861,9 @@ void scanGenericCommand(client *c, robj *o, unsigned long cursor) {
             }
 
             i += 2;
-        } else if (!strcasecmp(c->argv[i]->ptr, "match") && j >= 2) {
+        }
+        //验证match
+        else if (!strcasecmp(c->argv[i]->ptr, "match") && j >= 2) {
             pat = c->argv[i+1]->ptr;
             patlen = sdslen(pat);
 
@@ -853,7 +872,9 @@ void scanGenericCommand(client *c, robj *o, unsigned long cursor) {
             use_pattern = !(pat[0] == '*' && patlen == 1);
 
             i += 2;
-        } else if (!strcasecmp(c->argv[i]->ptr, "type") && o == NULL && j >= 2) {
+        }
+        // 可以看到type 只限用于scan 命令
+        else if (!strcasecmp(c->argv[i]->ptr, "type") && o == NULL && j >= 2) {
             /* SCAN for a particular type only applies to the db dict */
             typename = c->argv[i+1]->ptr;
             i+= 2;
@@ -874,13 +895,17 @@ void scanGenericCommand(client *c, robj *o, unsigned long cursor) {
     /* Handle the case of a hash table. */
     ht = NULL;
     if (o == NULL) {
+        //scan 命令是走到这里
         ht = c->db->dict;
     } else if (o->type == OBJ_SET && o->encoding == OBJ_ENCODING_HT) {
+        //sscan 命令是走到这里
         ht = o->ptr;
     } else if (o->type == OBJ_HASH && o->encoding == OBJ_ENCODING_HT) {
+        //hscan 命令是走到这里
         ht = o->ptr;
         count *= 2; /* We return key / value for this type. */
     } else if (o->type == OBJ_ZSET && o->encoding == OBJ_ENCODING_SKIPLIST) {
+        //zscan 命令是走到这里
         zset *zs = o->ptr;
         ht = zs->dict;
         count *= 2; /* We return key / value for this type. */
@@ -1002,6 +1027,8 @@ cleanup:
 /* The SCAN command completely relies on scanGenericCommand. */
 void scanCommand(client *c) {
     unsigned long cursor;
+    //下面这个方法主要就是把字符串
+    //转化为无符号的整型数
     if (parseScanCursorOrReply(c,c->argv[1],&cursor) == C_ERR) return;
     scanGenericCommand(c,NULL,cursor);
 }

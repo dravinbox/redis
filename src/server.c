@@ -632,6 +632,9 @@ struct redisCommand redisCommandTable[] = {
      "read-only to-sort @keyspace @dangerous",
      0,NULL,0,0,0,0,0,0},
 
+    // 可以看到scan 是一个readonly, 带有随机性，跟键值空间有关的命令
+    //-2 代表最少需要两个关键字，负数代表还有其它可选项
+    //其余参数含义可看本人文章执行命令那个章节
     {"scan",scanCommand,-2,
      "read-only random @keyspace",
      0,NULL,0,0,0,0,0,0},

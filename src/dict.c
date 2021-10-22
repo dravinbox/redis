@@ -180,6 +180,37 @@ int dictExpand(dict *d, unsigned long size)
  *
  * 字典扩容重新hash
  *
+ 当哈希表的冲突率过高时链表会很长，这时查询效率就会变低，所以有必要进行哈希表扩展，而如果哈希表存放的键值对很少的时候把size设的很大，又会浪费内存，这时就有必要进行哈希表收缩。这里扩展和收缩的过程，其实就是rehash的过程。
+Redis对字典的哈希表进行rehash的步骤如下：
+
+1. 为dict的哈希表ht[1]分配空间，分配的空间大小取决于操作类型和当前键值对数量ht[0].used
+
+    (1)如果是扩展操作，ht[1]的大小为第一个大于等于ht[0].used * 2 * 2^n 的整数
+
+    (2)如果是收缩操作，ht[1]的大小为第一个大于等于ht[0].used * 2^n 的整数
+
+2. 重新计算ht[0]中所有键的哈希值和索引值，将相应的键值对迁移到ht[1]的指定位置中去，需要注意的是，这个过程是渐进式完成的，不然如果字典很大的话全部迁移完需要一定的时间，这段时间内Redis服务器就不可用了哟
+
+3. 当ht[0]的所有键值对都迁移到ht[1]中去后（此时ht[0]会变成空表），把ht[1]设置为ht[0]，并重新在ht[1]上新建一个空表，为下次rehash做准备
+
+ *
+ *
+ *
+ *
+ *
+
+ Redis在什么条件下会对哈希表进行扩展或收缩：
+
+1. 服务器当前没有在执行BGSAVE或BGREWRITEAOF命令且哈希表的负载因子大于等于1时进行扩展操作
+
+2. 服务器正在执行BGSAVE或BGREWRITEAOF命令且哈希表的负载因子大于等于5时进行扩展操作
+
+（这里负载因子的计算公式为：负载因子=哈希表当前保存节点数/哈希表大小，
+ 而之所以在服务器进行BGSAVE或BGREWRITEAOF的时候负载因子比较大才进行扩展操作是因为此时Redis会创建子进程，
+ 而大多数操作系统采取了写时复制的技术来优化子进程使用效率，不适合在这种时候会做大规模的数据迁移活动，说白了就是为了节约内存和提升效率）
+
+
+ *
  * Performs N steps of incremental rehashing. Returns 1 if there are still
  * keys to move from the old to the new hash table, otherwise 0 is returned.
  *
@@ -302,6 +333,25 @@ int dictAdd(dict *d, void *key, void *val)
  * with the existing entry if existing is not NULL.
  *
  * If key was added, the hash entry is returned to be manipulated by the caller.
+ */
+/**
+ *
+ * Redis将一个键值对插入字典dict的过程：
+
+1. 先用哈希函数计算键key的哈希值（Redis使用的是MurMurHash2算法来计算哈希值）
+
+hash = dict->type->hashFunction(key)
+
+2. 借助sizemask和哈希值，计算出索引值（下面的x可以是0或者1）
+
+index = hash & dict->ht[x].sizemask
+
+3. 上面计算出来index的值其实就是对应dictEntry*数组的下标，如果对应下标没有存放任何键值对，则直接存放，否则借助开链法，从链表头插入新的键值对（因为链表没有记录指向链表尾部的指针，所以从链表头插入效率更高，可以达到O(1)）
+ *
+ * @param d
+ * @param key
+ * @param existing
+ * @return
  */
 dictEntry *dictAddRaw(dict *d, void *key, dictEntry **existing)
 {
