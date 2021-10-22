@@ -911,12 +911,16 @@ void scanGenericCommand(client *c, robj *o, unsigned long cursor) {
         count *= 2; /* We return key / value for this type. */
     }
 
+    //ht 是dict 类型的会走到下面
     if (ht) {
         void *privdata[2];
         /* We set the max number of iterations to ten times the specified
          * COUNT, so if the hash table is in a pathological state (very
          * sparsely populated) we avoid to block too much time at the cost
          * of returning no or very few elements. */
+        // 最大迭代数等于count*10
+        // 默认count 等于10
+        //todo https://blog.csdn.net/qq_33361976/article/details/109285073
         long maxiterations = count*10;
 
         /* We pass two pointers to the callback: the list to which it will
