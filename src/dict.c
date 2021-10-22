@@ -176,7 +176,11 @@ int dictExpand(dict *d, unsigned long size)
     return DICT_OK;
 }
 
-/* Performs N steps of incremental rehashing. Returns 1 if there are still
+/**
+ *
+ * 字典扩容重新hash
+ *
+ * Performs N steps of incremental rehashing. Returns 1 if there are still
  * keys to move from the old to the new hash table, otherwise 0 is returned.
  *
  * Note that a rehashing step consists in moving a bucket (that may have more
@@ -184,23 +188,29 @@ int dictExpand(dict *d, unsigned long size)
  * since part of the hash table may be composed of empty spaces, it is not
  * guaranteed that this function will rehash even a single bucket, since it
  * will visit at max N*10 empty buckets in total, otherwise the amount of
- * work it does would be unbound and the function may block for a long time. */
+ * work it does would be unbound and the function may block for a long time.
+ * */
 int dictRehash(dict *d, int n) {
     int empty_visits = n*10; /* Max number of empty buckets to visit. */
+    //首先判断一下是否在进行rehash，如果是，则继续进行；否则直接返回。
     if (!dictIsRehashing(d)) return 0;
 
+    //接着就是分n步开始进行渐进式rehash。同时还判断是否还有剩余元素，以保证安全性。
     while(n-- && d->ht[0].used != 0) {
         dictEntry *de, *nextde;
 
         /* Note that rehashidx can't overflow as we are sure there are more
          * elements because ht[0].used != 0 */
+        //在进行rehash之前，首先判断要迁移的bucket是否越界。
         assert(d->ht[0].size > (unsigned long)d->rehashidx);
         while(d->ht[0].table[d->rehashidx] == NULL) {
             d->rehashidx++;
+            //然后跳过空的bucket，这里有一个empty_visits变量，表示最大可访问的空bucket的数量，这一变量主要是为了保证不过多的阻塞Redis。
             if (--empty_visits == 0) return 1;
         }
         de = d->ht[0].table[d->rehashidx];
         /* Move all the keys in this bucket from the old to the new hash HT */
+        //接下来就是元素的迁移，将当前bucket的全部元素进行rehash，并且更新两张表中元素的数量
         while(de) {
             uint64_t h;
 
@@ -213,11 +223,13 @@ int dictRehash(dict *d, int n) {
             d->ht[1].used++;
             de = nextde;
         }
+        //每次迁移完一个bucket，需要将旧表中的bucket指向NULL。
         d->ht[0].table[d->rehashidx] = NULL;
         d->rehashidx++;
     }
 
     /* Check if we already rehashed the whole table... */
+    //最后判断一下是否全部迁移完成，如果是，则收回空间，重置rehash索引，否则告诉调用方，仍有数据未迁移。
     if (d->ht[0].used == 0) {
         zfree(d->ht[0].table);
         d->ht[0] = d->ht[1];
